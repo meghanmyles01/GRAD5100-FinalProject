@@ -1,0 +1,269 @@
+---
+title: "top_chef_answers"
+format: html
+editor: visual
+---
+
+## 
+
+```{r}
+library("topChef")
+library(dplyr)
+library(stringr)
+```
+
+```{r}
+chefdetails
+```
+
+```{r}
+judges
+```
+
+# 1.
+
+There are two types of top Chef programs: the \'Masters\' programs and the regular series.
+
+The database contains information on both. We are *not* interested in the \'Masters\'. There's also a season called \"Canada 6\" which is part of the Masters series. Create versions of the `chefdetails` and `judges` tables that exclude any records coming from seasons that include the word `Masters` or `Canada`.
+
+```{r}
+chefdetails1 <- chefdetails %>%
+  filter(!grepl('Masters|Canada', season, ignore.case = TRUE))
+
+records_removed <- nrow(chefdetails) - nrow(chefdetails1)
+print(paste('Number of records removed from chefdetails:', records_removed))
+```
+
+```{r}
+judges1 <- judges %>%
+  filter(!grepl('Masters|Canada', season, ignore.case = TRUE))
+
+records_removed <- nrow(judges) - nrow(judges1)
+print(paste('Number of records removed from judges:', records_removed))
+```
+
+# 2.
+
+Further trim your `chefdetails` and `judges` tables by including only the columns of
+interest from the table descriptions below:
+
+Of particular interest in the `chefdetails` table are the fields:
+• `season` which is the name of the season (often a city where the competition took place, but not always)
+• `seasonNumber` which is the number of the season
+• `name` which is the chef\'s name
+• `placement` which tells where the chef finished in the competition
+• `gender` which tells the chef\'s gender.
+
+In the `judges` table we are interested in:
+• `season` and `seasonNumber` which are the same as in the chefdetails table.
+• `episode` which gives the episode where the judge appeared; the show uses many guest judges varying episode by episode.
+• `challengeType` describes the type of challenge where the judge played a role.
+• `guestJudge` is the judge\'s name
+• `competedOnTC` is \'Yes\' if the judge was a previous top chef contestant.
+
+```{r}
+chefdetails2 <- chefdetails1[, c('season', 'seasonNumber', 'name', 'placement', 'gender')]
+head(chefdetails2)
+```
+
+```{r}
+judges2 <- judges1[, c('season', 'seasonNumber', 'episode', 'challengeType', 'guestJudge', 'competedOnTC')]
+head(judges2)
+```
+
+# 3.
+
+Your tables should have information from 20 remaining different seasons, numbered
+from 1 to 20. Make a table that has two columns, one called season and one called
+seasonNumber showing the number associated with each season. (For example, San
+Francisco is season 1.)
+
+```{r}
+unique <- unique(union(
+  paste(chefdetails2$season, chefdetails2$seasonNumber),
+  paste(judges2$season, judges2$seasonNumber)
+))
+
+print(unique)
+print(length(unique))
+```
+
+There is a problem here - the strings "Charleston" and "Charleston " are both included with in 'season'. We will have to change "Charleston " to "Charleston".
+
+```{r}
+chefdetails3 <- chefdetails2
+judges3 <- judges2
+
+chefdetails3$season <- gsub("Charleston ", "Charleston", chefdetails3$season)
+judges3$season <- gsub("Charleston ", "Charleston", judges3$season)
+
+unique <- unique(union(
+  paste(chefdetails3$season, chefdetails3$seasonNumber),
+  paste(judges3$season, judges3$seasonNumber)
+))
+
+print(unique)
+print(length(unique))
+```
+
+```{r}
+chefdetails3$season <- gsub("All Stars: New York", "New York", chefdetails3$season)
+judges3$season <- gsub("All Stars: New York", "New York", judges3$season)
+
+chefdetails3$season <- gsub("All-Stars L.A.", "L.A.", chefdetails3$season)
+judges3$season <- gsub("All-Stars L.A.", "L.A.", judges3$season)
+
+chefdetails3$season <- gsub("World All Stars", "World", chefdetails3$season)
+judges3$season <- gsub("World All Stars", "World", judges3$season)
+```
+
+```{r}
+unique <- unique(union(
+  paste(chefdetails3$season, chefdetails3$seasonNumber),
+  paste(judges3$season, judges3$seasonNumber)
+))
+
+print(unique)
+print(length(unique))
+```
+
+```{r}
+table <- data.frame(
+  season = str_extract(unique, "[^0-9]+"),
+  seasonNumber = as.numeric(str_extract(unique, "\\d+"))
+)
+
+table
+```
+
+# 4.
+
+## a.
+
+Among all chef contestants, how many are male and how many are female?
+
+```{r}
+unique_names_gender <- unique(chefdetails3[, c("name", "gender")])
+
+male_count <- sum(unique_names_gender$gender == "Male")
+print(paste('Number of male chef contestants:', male_count))
+
+female_count <- sum(unique_names_gender$gender == "Female")
+print(paste('Number of female chef contestants:', female_count))
+
+if (length(unique_names_gender) == length(male_count) + length(female_count)){
+  print('We are all good! All chefs accounted for.')
+} else {
+  print('Something is not quite right!')
+}
+```
+
+## b.
+
+Among all winners (placement==1) how many are male and how many are female?
+
+```{r}
+winners <- subset(chefdetails3, placement == 1, select = c(name, gender, placement))
+winners
+```
+
+```{r}
+unique_names_gender_winners <- unique(winners[, c("name", "gender")])
+
+male_count_winners <- sum(unique_names_gender_winners$gender == "Male")
+print(paste('Number of male chef winners:', male_count_winners))
+
+female_count_winners <- sum(unique_names_gender_winners$gender == "Female")
+print(paste('Number of female chef winners:', female_count_winners))
+
+if (length(unique_names_gender_winners) == length(male_count_winners) + length(female_count_winners)){
+  print('We are all good! All winners accounted for.')
+} else {
+  print('Something is not quite right!')
+}
+```
+
+## c.
+
+Among all sets of top 3 finalists (placement=1,2,3) how many are male and how many
+are female?
+
+```{r}
+finalist_sets <- chefdetails3 %>%
+  filter(placement %in% c(1, 2, 3)) %>%
+  select(seasonNumber, name, gender, placement)
+
+finalist_sets
+```
+
+```{r}
+unique_names_gender_finalists <- unique(finalist_sets[, c("name", "gender")])
+
+male_count_finalists <- sum(unique_names_gender_finalists$gender == "Male")
+print(paste('Number of male chef finalists:', male_count_finalists))
+
+female_count_finalists <- sum(unique_names_gender_finalists$gender == "Female")
+print(paste('Number of female chef finalists:', female_count_finalists))
+
+if (length(unique_names_gender_finalists) == length(male_count_finalists) + length(female_count_finalists)){
+  print('We are all good! All finalists accounted for.')
+} else {
+  print('Something is not quite right!')
+}
+```
+
+## d.
+
+Compare the number of times a female was placed in the top 3 with the number of times
+a female won. Does this number seem unusual? That is, are women who place in the
+top 3 less likely than expected to ultimately win the competition? Why or why not?
+
+From our prior work, we know the following pieces of information:
+
+```         
+Number of female chef finalists: 22
+Number of female chef winners: 6
+
+Number of male chef finalists: 32
+Number of male chef winners: 13
+```
+
+To start, we can see that while the number of male finalists is only about 1.5 times greater than the number of female finalists, the number of male winners was more than double the number of female winners. This means that male finalists were more likely to win than female finalists.
+
+We can perform some calculations to further investigate these numbers.
+
+```{r}
+percent_female_finalist_winners <- (6 / 22) * 100
+percent_male_finalist_winners <- (13 / 32) * 100
+
+print(paste('Probability that a given female will win, given that she is a finalist:', percent_female_finalist_winners, '%'))
+print(paste('Probability that a given male will win, given that he is a finalist:', percent_male_finalist_winners, '%'))
+```
+
+We can now also see that female finalists have a much lower probability of winning than male contestants. In conclusion, it would appear that women are less likely than expected to win the competition.
+
+# 4.
+
+Make a table with one row for each first place winner containing the winner\'s name,
+the season they won, and a column containing \'Yes\' or \'No\' depending on whether they
+served as a guest judge or not.
+
+```{r}
+winners_table <- subset(chefdetails2, placement == 1, select = c(name, season))
+winners_table$guestjudge <- ifelse(winners_table$name %in% judges3$guestJudge, 'Yes', 'No')
+winners_table
+```
+
+# 5.
+
+Find all contestants who were not first place winners but did serve as a guest judge at
+some point. Make sure to only list each name once.
+
+```{r}
+not_winner <- chefdetails3[chefdetails3$placement != 1, "name"]$name
+judge_names <- judges3$guestJudge
+
+judge_not_winner <- intersect(not_winner, judge_names)
+
+judge_not_winner
+```
